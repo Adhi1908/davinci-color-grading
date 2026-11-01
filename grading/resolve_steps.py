@@ -80,6 +80,23 @@ async def match_frame_rate(r: Resolve, clip_fps: float):
         raise SystemExit("could not set the project frame rate to match the clip")
 
 
+async def match_resolution(r: Resolve, src_w: int, src_h: int, max_h: int = 2160) -> tuple[int, int]:
+    """Timeline resolution with the SOURCE aspect (e.g. 3:2 open gate -> 3240x2160): full frame, no bars, no crop.
+
+    CinePrint35's guide warns that halation bleeds onto letter/pillarbox bars when aspects differ.
+    """
+    h = min(max_h, src_h) // 2 * 2
+    w = round(h * src_w / src_h / 2) * 2
+    for k, v in (("timelineResolutionWidth", w), ("timelineResolutionHeight", h)):
+        await r.call("project_settings", "set_setting", {"name": k, "value": str(v)})
+    gw = (await r.call("project_settings", "get_setting", {"name": "timelineResolutionWidth"})).get("settings")
+    gh = (await r.call("project_settings", "get_setting", {"name": "timelineResolutionHeight"})).get("settings")
+    log(f"  timeline resolution -> {gw}x{gh} (source aspect {src_w}x{src_h})")
+    if (int(gw), int(gh)) != (w, h):
+        raise SystemExit("could not set the timeline resolution")
+    return w, h
+
+
 async def build_shot_timeline(r: Resolve, clip: dict, shots: list, name: str, clip_fps: float | None = None) -> dict:
     if clip_fps:
         await match_frame_rate(r, clip_fps)
@@ -158,10 +175,14 @@ async def capture_shots(r: Resolve, shots: list, out_dir: str | Path, tag: str) 
     return paths
 
 
-async def render(r: Resolve, target: str, out_dir: str | Path, name: str, poll_s: float = 3.0) -> dict:
+async def render(r: Resolve, target: str, out_dir: str | Path, name: str, poll_s: float = 3.0,
+                 size: tuple[int, int] | None = None) -> dict:
+    """size overrides the target's raster (e.g. a 3:2 timeline exports 3240x2160 instead of a pillarboxed 3840x2160)."""
     Path(out_dir).mkdir(parents=True, exist_ok=True)
-    job = await r.call("render", "prepare_delivery_job", {"target": target, "target_dir": str(out_dir),
-                                                           "custom_name": name, "require_temp_target": False})
+    params = {"target": target, "target_dir": str(out_dir), "custom_name": name, "require_temp_target": False}
+    if size:
+        params["settings"] = {"FormatWidth": size[0], "FormatHeight": size[1]}
+    job = await r.call("render", "prepare_delivery_job", params)
     if not job.get("job_id"):
         raise SystemExit(f"render job failed: {job}")
     await r.call("render", "start", {"job_ids": [job["job_id"]]})

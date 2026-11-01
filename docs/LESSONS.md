@@ -16,6 +16,13 @@
 - The bridge can't list Fusion inputs (no `GetAttrs`). Probe names with `get_input` instead.
 - Fusion grain/halation is processed at the **output** resolution: a 4K render of a 1080 timeline stays true 4K. Measured.
 - Grain makes exports large (about 260 Mbps for 4K H.264). Make a separate H.265 copy for sharing.
+- **A source larger than UHD + a Fusion comp on free Resolve = double scaling.** A 6240×4160 clip on a 3240×2160 timeline
+  shrank to about 52% of the frame (3240/6240) and the rest went black. The pipelines skip Fusion grain when the source is larger than 3840×2160.
+  Every verify step also compares the picture's bounding box against the ungraded frame. Without grain, an 8-bit source can band slightly in skies.
+- **`delete_comp` can't remove a clip's only Fusion comp** (returns success:false). To undo comps, delete the pipeline's own timeline and rebuild it.
+- **Non-16:9 timelines:** set `timelineResolutionWidth/Height` *before* building the timeline (`--timeline-res match`).
+  Then override `FormatWidth/FormatHeight` on the render job, or the 4K preset pillarboxes the frame to 3840×2160.
+- The watermark detector is calibrated on the 16:9 1080p dot grid. For other aspects, also eyeball a 1:1 crop of a flat area (sky, wall).
 
 - PowerGrade node counts differ by camera. The Alexa grade has **20** nodes (no ToLogC, because it's already LogC), Sony has 21.
   That's why Studio-only nodes are found **by label**, never by index.

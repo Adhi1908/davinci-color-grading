@@ -88,6 +88,9 @@ async def run(a):
         shots = shots_info["shots"]
         A.write_json(shots_info, work / "shots.json")
         S.log(f"  {clip['name']}: {shots_info['width']}x{shots_info['height']} @ {shots_info['fps']:.3f}, {len(shots)} shots")
+        tl_size = None
+        if a.timeline_res == "match":
+            tl_size = await S.match_resolution(r, shots_info["width"], shots_info["height"], max_h=a.resolution)
         await S.build_shot_timeline(r, clip, shots, a.timeline_name, clip_fps=shots_info["fps"])
 
         S.log(f"3/7 apply PowerGrade as version '{version}' + 4/7 free-edition node handling")
@@ -127,20 +130,29 @@ async def run(a):
             S.log(f"  shot {sh['idx']:2d}: default median {st['median']:.3f} -> EXP offset {off:+.4f} | "
                   f"cdl {'OK' if r1.get('success') and r2.get('success') else 'FAILED'}")
 
-        if not a.studio and a.grain > 0:
+        big = shots_info["width"] > 3840 or shots_info["height"] > 2160
+        if not a.studio and a.grain > 0 and big:
+            S.log(f"6/7 Fusion grain SKIPPED: the {shots_info['width']}x{shots_info['height']} source is larger than UHD; on free "
+                  "Resolve, Fusion double-scales it (picture shrinks to timeline/source size). Grade stays grain-free.")
+        elif not a.studio and a.grain > 0:
             S.log(f"6/7 Fusion grain (free replacement for the Studio-only grain node), blend {a.grain}")
             await S.fusion_texture(r, len(shots), grain_blend=a.grain, halation=None)
 
         S.log("7/7 verify every shot (rendered frames)")
         caps = await S.capture_shots(r, shots, work / "captures", "graded")
         rows = []
+        from PIL import Image
         for sh, cap in zip(shots, caps):
-            st = A.frame_stats(A.load_rgb(cap))
-            from PIL import Image
+            img = A.load_rgb(cap)
+            st = A.frame_stats(img)
             wm = A.watermark_score(Image.open(cap))
-            rows.append({"shot": sh["idx"], **st, "watermark": wm})
+            box = A.content_box(img) / max(A.content_box(A.load_rgb(work / "captures" / f"default_{sh['idx']:02d}.png")), 1e-6)
+            rows.append({"shot": sh["idx"], **st, "watermark": wm, "picture_area_vs_ungraded": box})
             S.log(f"  shot {sh['idx']:2d}: luma p1/50/99 {st['p1']:.3f}/{st['median']:.3f}/{st['p99']:.3f} "
-                  f"sat {st['sat']:.3f} watermark {'YES' if wm > 0.3 else 'none'}")
+                  f"sat {st['sat']:.3f} watermark {'YES' if wm > 0.3 else 'none'} picture {box:.0%}")
+            if box < 0.9:
+                raise SystemExit(f"shot {sh['idx']}: the picture shrank to {box:.0%} of its ungraded size - a Fusion comp is "
+                                 "rescaling it. Re-run with --grain 0 (see docs/LESSONS.md).")
         A.contact_sheet(caps, work / "graded_contact.jpg")
         report = {"connected": info, "powergrade": str(drx_src), "version": version, "shots": rows,
                   "watermark_free": all(x["watermark"] < 0.3 for x in rows)}
@@ -149,7 +161,7 @@ async def run(a):
         if a.export:
             name = a.export_name or f"{info['project']}_CinePrint35_{a.stock}_{'4K' if a.resolution == 2160 else 'HD'}".replace(" ", "_")
             target = "h264_2160p_web" if a.resolution == 2160 else "h264_1080p_web"
-            ver = await S.render(r, target, a.export_dir, name)
+            ver = await S.render(r, target, a.export_dir, name, size=tl_size)
             chk = A.export_frames_check(ver["output_path"], shots, work / "export_frames")
             S.log(f"  export: {chk['codec']} {chk['width']}x{chk['height']} {chk['frames']} frames, "
                   f"watermark-free: {chk['watermark_free']}")
@@ -184,7 +196,9 @@ def main():
     p.add_argument("--export", action="store_true")
     p.add_argument("--export-dir", default=str(Path.home() / "Videos" / "Resolve Exports"))
     p.add_argument("--export-name")
-    p.add_argument("--resolution", type=int, default=2160, choices=[2160, 1080])
+    p.add_argument("--resolution", type=int, default=2160, choices=[2160, 1080], help="export (and matched timeline) height")
+    p.add_argument("--timeline-res", choices=["keep", "match"], default="keep",
+                   help="match = timeline + export use the SOURCE aspect (e.g. 3:2 open gate -> 3240x2160), no bars/crop")
     a = p.parse_args()
     if a.look == "portrait":  # skin-first values from the Alexa polish (skin sat 0.58-0.68 -> 0.44-0.56)
         a.warmth, a.saturation, a.green, a.dark_lift = 0.4, 0.92, 0.985, 0.025

@@ -54,6 +54,10 @@ Every grade lands as a **new grade version** on each shot. Your existing grades 
 - `film_emulation --preview-only --source clip.mp4`: builds the LUTs and preview stills without Resolve.
 - `python -m grading.verify_export render.mp4 work/cineprint/shots.json`: re-checks any rendered file for resolution, frames, audio and watermark on every shot.
 - **Export resolution:** match the source. A 2K source (e.g. 2048×1152) gains nothing at 4K, so use `--resolution 1080`.
+- `--timeline-res match`: timeline and export keep the **source's aspect** (e.g. 6240×4160 3:2 open gate → 3240×2160),
+  so there are no pillarbox bars and no crop. Verified on Fuji X-H2S F-Log2 footage.
+- **Sources larger than UHD (e.g. 6K) on free Resolve:** the pipeline skips Fusion grain automatically, because free Fusion
+  double-scales them and the picture shrinks inside the frame. Every run also checks that each shot still fills the frame.
 
 ## Verified results
 | Footage | PowerGrade | Result |

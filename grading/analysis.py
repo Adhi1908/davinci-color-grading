@@ -84,6 +84,19 @@ def frame_stats(img: np.ndarray) -> dict:
                 sat=float(np.sqrt((ch ** 2).sum(-1)).mean()), mid_tint=[float(t) for t in tint])
 
 
+def content_box(img: np.ndarray, thresh: float = 0.012) -> float:
+    """Share of the frame covered by the picture's bounding box (1.0 = full frame).
+
+    Catches a picture that shrank inside the frame (e.g. Fusion double-scaling a >UHD source on free Resolve).
+    """
+    y = img @ LUMA
+    rows = np.where(y.mean(1) > thresh)[0]
+    cols = np.where(y.mean(0) > thresh)[0]
+    if not len(rows) or not len(cols):
+        return 0.0
+    return float((rows[-1] - rows[0] + 1) * (cols[-1] - cols[0] + 1) / (y.shape[0] * y.shape[1]))
+
+
 # ----------------------------------------------------------------------------- watermark
 def watermark_score(img_1080: Image.Image) -> float:
     """Free-edition 'DaVinci Resolve Studio' watermark = grid of white dots every 100px (x=60.., y=40..) at 1080p.
@@ -118,11 +131,13 @@ def export_frames_check(video: str | Path, shots: list, out_dir: str | Path) -> 
             c.seek(int(t / v.time_base), stream=v)
             for f in c.decode(v):
                 if f.time >= t - 1e-3:
-                    im = f.to_image().resize((1920, 1080), Image.LANCZOS)
+                    full = f.to_image()
                     break
+            im = full.resize((1920, round(1920 * full.size[1] / full.size[0])), Image.LANCZOS)  # keep the true aspect
             im.save(out / f"export_{sh['idx']:02d}.jpg", quality=85)
-            rows.append(dict(shot=sh["idx"], watermark=watermark_score(im),
-                             **frame_stats(np.asarray(im).astype(float) / 255)))
+            arr = np.asarray(im).astype(float) / 255
+            rows.append(dict(shot=sh["idx"], watermark=watermark_score(full), picture_area=content_box(arr),
+                             **frame_stats(arr)))
     info["shots"] = rows
     info["watermark_free"] = all(r["watermark"] < 0.3 for r in rows)
     return info
