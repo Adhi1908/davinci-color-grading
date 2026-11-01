@@ -17,7 +17,14 @@
 - Fusion grain/halation is processed at the **output** resolution: a 4K render of a 1080 timeline stays true 4K. Measured.
 - Grain makes exports large (about 260 Mbps for 4K H.264). Make a separate H.265 copy for sharing.
 
+- PowerGrade node counts differ by camera. The Alexa grade has **20** nodes (no ToLogC, because it's already LogC), Sony has 21.
+  That's why Studio-only nodes are found **by label**, never by index.
+- **Export at the source's resolution.** 4K from a 2K source is only an upscale, and grain makes it huge.
+
 ## Grading
+- **Low-key portraits stay low-key.** The exposure rule lifts dark shots by at most about half a stop, so shots lit for mood (night interiors,
+  window light) keep their mood instead of being flattened to the daylight target.
+- **Burned-in captions/timecode get graded too** (white → cream under the warm white point). It can't be avoided without the clean source.
 - **Look at rendered frames, not metadata.** Every grade here was checked on Resolve's own output.
 - **Hue or saturation *threshold* weights inside a LUT make skies blotchy.** Use smooth RGB weights (e.g. `B−R`). Measured: sky blotch 0.754 → 0.643.
 - **Warm white points must skip blue.** Warming bright tones blindly turns skies purple (display space) or mint-yellow (log space).

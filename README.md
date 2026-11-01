@@ -27,6 +27,9 @@ cp .mcp.json.example .mcp.json   # point it at your davinci-resolve MCP install
 # 2. in Resolve: open/create a project and import your clip
 #    (free edition: then Workspace > Scripts > resolve_bridge)
 
+# 2b. inspect the footage first: is it log? which camera / stock fits?
+python -m grading.analyze path/to/clip.mp4
+
 # 3a. genuine CinePrint35 look (bring your own licensed pack)
 python -m grading.cineprint --cineprint-dir "path/to/CinePrint35 for Davinci Resolve" \
        --camera "Sony S-Log3" --stock 250D --gauge 35mm --export
@@ -45,6 +48,14 @@ Every grade lands as a **new grade version** on each shot. Your existing grades 
 - `--studio`: for Resolve Studio. Keeps all PowerGrade nodes, including its own grain, denoise and dust.
 - `--import <file>`, `--clip <name>`, `--resolution 2160|1080`, `--export-dir`.
 - `film_emulation --preview-only --source clip.mp4`: builds the LUTs and preview stills without Resolve.
+- `python -m grading.verify_export render.mp4 work/cineprint/shots.json`: re-checks any rendered file for resolution, frames, audio and watermark on every shot.
+- **Export resolution:** match the source. A 2K source (e.g. 2048×1152) gains nothing at 4K, so use `--resolution 1080`.
+
+## Verified results
+| Footage | PowerGrade | Result |
+|---|---|---|
+| Sony S-Log3 4K beach, 11 shots | Sony S-Log3 250D 35mm | 4K export, re-run identical to the hand-made reference, watermark-free |
+| ARRI Alexa LogC (ProRes 4444, 2K), 12 portrait/street shots | Arri Alexa LogC3 250D 35mm (20 nodes, no ToLogC) | 1080p export, natural skin across complexions, watermark-free |
 
 ## Docs
 - [docs/SETUP.md](docs/SETUP.md): Resolve version, MCP server, the free-edition bridge, project settings

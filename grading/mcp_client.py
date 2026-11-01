@@ -83,7 +83,7 @@ class Resolve:
 async def connect(mcp_config: str | Path, name: str = "davinci-resolve"):
     srv = load_server(mcp_config, name)
     # UTF-8 for the server's own logging: on Windows consoles (cp1252) its '->' arrows spam encode errors
-    env = {**os.environ, "PYTHONIOENCODING": "utf-8", **(srv.get("env") or {})}
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1", **(srv.get("env") or {})}
     params = StdioServerParameters(command=srv["command"], args=srv.get("args", []), env=env)
     async with stdio_client(params) as (r, w):
         async with ClientSession(r, w) as s:
