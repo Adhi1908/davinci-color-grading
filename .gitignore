@@ -1,0 +1,30 @@
+# --- never commit third-party paid assets (CinePrint35 is a licensed product: bring your own copy) ---
+*.drx
+CinePrint35*/
+*CinePrint35*.rar
+*CinePrint35*.zip
+*User Guide*.pdf
+OSM*/
+
+# --- media & renders (large, and usually someone else's footage) ---
+*.mp4
+*.mov
+*.mxf
+*.webm
+*.braw
+*.r3d
+*.wav
+
+# --- per-run working data ---
+work/
+*.cube
+!looks/*.cube
+
+# --- local environment ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+.mcp.json
+.DS_Store
+Thumbs.db
