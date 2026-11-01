@@ -45,6 +45,10 @@ Every grade lands as a **new grade version** on each shot. Your existing grades 
 - `--camera`: the PowerGrade folder for your footage. The pack ships `Sony S-Log3`, `Apple Log`, `Arri Alexa LogC3`, `Blackmagic Design Film Gen5`, `Canon Log 2`, `Fuji F-Log2`, `Panasonic V-Log`, `RED IPP2`, `RED Komodo`, `Rec709` (non-log) and `Other Cameras` (CST).
 - `--stock 250D | 500T | 160T`, `--gauge 35mm | 16mm`.
 - `--exposure-target`, `--contrast`, `--saturation`, `--warmth`, `--grain`: the per-shot workflow knobs. The defaults reproduce the reference.
+- `--look portrait`: skin-first polish for people-heavy footage. It uses less warmth and saturation, trims a hair of green, and lifts low-key shots a little.
+  Verified on ARRI Alexa faces: skin saturation 0.58–0.68 → 0.44–0.56, with natural skin across complexions.
+- `python -m grading.retune --work-dir work/cineprint --warmth 0.4 --saturation 0.92 ...`: adjusts an already-graded timeline
+  in place (new version), without re-applying the PowerGrade, and reports exposure and skin numbers per shot.
 - `--studio`: for Resolve Studio. Keeps all PowerGrade nodes, including its own grain, denoise and dust.
 - `--import <file>`, `--clip <name>`, `--resolution 2160|1080`, `--export-dir`.
 - `film_emulation --preview-only --source clip.mp4`: builds the LUTs and preview stills without Resolve.

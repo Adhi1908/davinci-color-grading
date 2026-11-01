@@ -116,9 +116,10 @@ async def run(a):
         if not exp_node or not prim_node:
             raise SystemExit(f"could not find Exp/Primaries nodes in {list(labels)}")
         prim = primaries_cdl(a.contrast, a.warmth, a.saturation)
+        prim["Slope"][1] = round(prim["Slope"][1] * a.green, 4)
         for sh, cap in zip(shots, caps):
             st = A.frame_stats(A.load_rgb(cap))
-            off = exposure_offset(st["median"], a.exposure_target)
+            off = exposure_offset(st["median"], a.exposure_target) + (a.dark_lift if st["median"] < 0.42 else 0.0)
             item = dict(track_type="video", track_index=1, item_index=sh["idx"])
             r1 = await r.call("timeline_item_color", "safe_set_cdl", {**item, "cdl": {
                 "NodeIndex": exp_node, "Slope": [1, 1, 1], "Offset": [off] * 3, "Power": [1, 1, 1], "Saturation": 1.0}})
@@ -173,13 +174,21 @@ def main():
     p.add_argument("--contrast", type=float, default=1.08)
     p.add_argument("--saturation", type=float, default=1.10)
     p.add_argument("--warmth", type=float, default=1.0, help="0 = none, 1 = reference look, keep <= 2")
+    p.add_argument("--green", type=float, default=1.0, help="Primaries green slope; <1 pulls skin from yellow to peach")
+    p.add_argument("--dark-lift", type=float, default=0.0, help="extra EXP offset for low-key shots (median < 0.42)")
+    p.add_argument("--look", choices=["landscape", "portrait"], default="landscape",
+                   help="landscape = reference beach look; portrait = skin-first polish (verified on ARRI Alexa faces): "
+                        "warmth 0.4, saturation 0.92, green 0.985, dark-lift 0.025")
     p.add_argument("--grain", type=float, default=0.25, help="Fusion grain blend (0.25 = subtle 35mm)")
     p.add_argument("--studio", action="store_true", help="Resolve Studio: keep all PowerGrade nodes, no Fusion grain")
     p.add_argument("--export", action="store_true")
     p.add_argument("--export-dir", default=str(Path.home() / "Videos" / "Resolve Exports"))
     p.add_argument("--export-name")
     p.add_argument("--resolution", type=int, default=2160, choices=[2160, 1080])
-    asyncio.run(run(p.parse_args()))
+    a = p.parse_args()
+    if a.look == "portrait":  # skin-first values from the Alexa polish (skin sat 0.58-0.68 -> 0.44-0.56)
+        a.warmth, a.saturation, a.green, a.dark_lift = 0.4, 0.92, 0.985, 0.025
+    asyncio.run(run(a))
 
 
 if __name__ == "__main__":

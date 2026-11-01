@@ -22,6 +22,10 @@
 - **Export at the source's resolution.** 4K from a 2K source is only an upscale, and grain makes it huge.
 
 ## Grading
+- **The beach-tuned warmth makes skin orange.** On faces it measured skin hue 33–36° and saturation 0.6+.
+  For people, use `--look portrait` (warmth 0.4, saturation 0.92, green 0.985).
+- **Skin-hue numbers from an HSV mask are biased yellow** by blonde hair and beige walls. Trust the shots where a face fills the frame
+  (they read 26–28°) and look at the frames.
 - **Low-key portraits stay low-key.** The exposure rule lifts dark shots by at most about half a stop, so shots lit for mood (night interiors,
   window light) keep their mood instead of being flattened to the daylight target.
 - **Burned-in captions/timecode get graded too** (white → cream under the warm white point). It can't be avoided without the clean source.
